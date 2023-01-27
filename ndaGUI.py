@@ -142,13 +142,12 @@ class window(QMainWindow):
         #Triggers
         open.triggered.connect(self.openFile)
         countsButton.clicked.connect(self.count)
-        if self.cb.count() != 0:
-            self.countInterval[0].valueChanged.connect(self.update)
-            self.countInterval[1].valueChanged.connect(self.update)
-            self.mhWindow.valueChanged.connect(self.update)
-            self.smooth.valueChanged.connect(self.update)
-            self.checkBoxes[2].stateChanged.connect(self.update)
-            self.checkBoxes[3].stateChanged.connect(self.update)
+        self.countInterval[0].valueChanged.connect(self.update)
+        self.countInterval[1].valueChanged.connect(self.update)
+        self.mhWindow.valueChanged.connect(self.update)
+        self.smooth.valueChanged.connect(self.update)
+        self.checkBoxes[2].stateChanged.connect(self.update)
+        self.checkBoxes[3].stateChanged.connect(self.update)
 
         #Config
         win.setLayout(hbox)
@@ -192,18 +191,19 @@ class window(QMainWindow):
         self.countsString.setText(str(int(area)))
     
     def update(self):
-        x = range(0, self.data.size)
-        data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[2].isChecked(), self.checkBoxes[3].isChecked())
-        if len(self.span):
-            for i in self.span:
-                try:
-                    i.remove()
-                except ValueError:
-                    continue
-        self.span.append(self.ax.axvspan(self.countInterval[0].value(), self.countInterval[1].value(), alpha = 0.5, color = self.facecolors[1]))
-        self.sniplot.set_data(x, background)
-        self.nobkgplot.set_data(x, data_no_bkg)
-        self.static_canvas.draw_idle()
+        if self.cb.count() != 0:
+            x = range(0, self.data.size)
+            data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[2].isChecked(), self.checkBoxes[3].isChecked())
+            if len(self.span):
+                for i in self.span:
+                    try:
+                        i.remove()
+                    except ValueError:
+                        continue
+            self.span.append(self.ax.axvspan(self.countInterval[0].value(), self.countInterval[1].value(), alpha = 0.5, color = self.facecolors[1]))
+            self.sniplot.set_data(x, background)
+            self.nobkgplot.set_data(x, data_no_bkg)
+            self.static_canvas.draw_idle()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
