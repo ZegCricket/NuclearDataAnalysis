@@ -15,7 +15,6 @@ def calculate_snip_background(data, mhw, shw, decrease = True, lls = True, fo = 
     else:
         background = snip(data, max_half_window = mhw, decreasing = decrease, smooth_half_window = shw, filter_order = fo)[0]
     data_no_bkg = data - background
-
     return data_no_bkg, background
 
 def onlyFileName(fileName):
@@ -31,20 +30,19 @@ def twoSpinBoxes(labels, layout):
     label1 = QLabel(labels[0])
     label1.setFixedHeight(15)
     label1.setAlignment(Qt.AlignRight)
+    layout.addWidget(label1)
     spinBox1 = QSpinBox()
     spinBox1.setFixedWidth(75)
     spinBox1.setAlignment(Qt.AlignCenter)
+    layout.addWidget(spinBox1)
     label2 = QLabel(labels[1])
     label2.setFixedHeight(15)
     label2.setAlignment(Qt.AlignRight)
+    layout.addWidget(label2)
     spinBox2 = QSpinBox()
     spinBox2.setFixedWidth(75)
     spinBox2.setAlignment(Qt.AlignCenter)
-    layout.addWidget(label1)
-    layout.addWidget(spinBox1)
-    layout.addWidget(label2)
     layout.addWidget(spinBox2)
-
     return spinBox1, spinBox2
 
 class window(QMainWindow):
@@ -74,10 +72,16 @@ class window(QMainWindow):
         plotLayout = QVBoxLayout()
         hbox.addLayout(plotLayout)
         self.static_canvas = FigureCanvas(plt.Figure())
-        plotLayout.addWidget(NavigationToolbar(self.static_canvas))
+        self.navigation = NavigationToolbar(self.static_canvas)
+        plotLayout.addWidget(self.navigation)
         plotLayout.addWidget(self.static_canvas)
         self.ax = self.static_canvas.figure.subplots()
         self.ax.grid(visible = True, which = "major", axis = "both")
+        self.ax.set_xlabel("Channel")
+        self.ax.set_ylabel("Counts")
+        self.plot, = self.ax.plot(0, color = self.facecolors[0])
+        self.sniplot, = self.ax.plot(0, "--", label = "SNIP", color = self.facecolors[2])
+        self.nobkgplot, = self.ax.plot(0, label = "W/o Background", color = self.facecolors[3])
 
         #Configuration of the right part of the central widget
         toolsLayout = QVBoxLayout()
@@ -142,12 +146,12 @@ class window(QMainWindow):
         #Triggers
         open.triggered.connect(self.openFile)
         countsButton.clicked.connect(self.count)
-        self.countInterval[0].valueChanged.connect(self.update)
-        self.countInterval[1].valueChanged.connect(self.update)
-        self.mhWindow.valueChanged.connect(self.update)
-        self.smooth.valueChanged.connect(self.update)
-        self.checkBoxes[2].stateChanged.connect(self.update)
-        self.checkBoxes[3].stateChanged.connect(self.update)
+        self.countInterval[0].valueChanged.connect(self.updateROI)
+        self.countInterval[1].valueChanged.connect(self.updateROI)
+        self.mhWindow.valueChanged.connect(self.updateSNIP)
+        self.smooth.valueChanged.connect(self.updateSNIP)
+        self.checkBoxes[2].stateChanged.connect(self.updateSNIP)
+        self.checkBoxes[3].stateChanged.connect(self.updateSNIP)
 
         #Config
         win.setLayout(hbox)
@@ -163,17 +167,17 @@ class window(QMainWindow):
             except ValueError:
                 self.data = np.genfromtxt(fileName, comments = '$', skip_footer = 1)
             self.data = np.reshape(self.data, -1)
-            self.ax.clear()
             fileName, self.dirName = onlyFileName(fileName)
-            self.ax.plot(self.data, label = fileName, color = self.facecolors[0])
             self.data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[2].isChecked(), self.checkBoxes[3].isChecked())
-            self.nobkgplot, = self.ax.plot(self.data_no_bkg, label = "W/o Background", color = self.facecolors[3])
-            self.sniplot, = self.ax.plot(background, "--", label = "SNIP", color = self.facecolors[2])
+            x = range(0, self.data.size)
+            self.plot.set_data(x, self.data)
+            self.plot.set_label(fileName)
+            self.sniplot.set_data(x, background)
+            self.nobkgplot.set_data(x, self.data_no_bkg)
+            self.updateROI()
+            self.navigation.update()
             self.ax.set_xlim(0, self.data.size)
             self.ax.set_ylim(0, self.data.max() * 1.1)
-            self.ax.set_xlabel("Channel")
-            self.ax.set_ylabel("Counts")
-            self.ax.grid(visible = True, which = "major", axis = "both", linestyle = "--")
             self.ax.legend()
             self.static_canvas.draw_idle()
             self.countInterval[0].setMaximum(self.data.size - 1)
@@ -181,29 +185,33 @@ class window(QMainWindow):
             self.cb.addItem(fileName)
 
     def count(self):
-        area = 0
-        if self.checkBoxes[1].isChecked():
-            for i in range(self.countInterval[0].value(), self.countInterval[1].value(), 1):
-                area += self.data_no_bkg[i]
-        else:
-            for i in range(self.countInterval[0].value(), self.countInterval[1].value(), 1):
-                area += self.data[i]
-        self.countsString.setText(str(int(area)))
+        if self.cb.count() != 0:
+            area = 0
+            if self.checkBoxes[1].isChecked():
+                for i in range(self.countInterval[0].value(), self.countInterval[1].value(), 1):
+                    area += self.data_no_bkg[i]
+            else:
+                for i in range(self.countInterval[0].value(), self.countInterval[1].value(), 1):
+                    area += self.data[i]
+            self.countsString.setText(str(int(area)))
     
-    def update(self):
+    def updateSNIP(self):
         if self.cb.count() != 0:
             x = range(0, self.data.size)
             data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[2].isChecked(), self.checkBoxes[3].isChecked())
-            if len(self.span):
-                for i in self.span:
-                    try:
-                        i.remove()
-                    except ValueError:
-                        continue
-            self.span.append(self.ax.axvspan(self.countInterval[0].value(), self.countInterval[1].value(), alpha = 0.5, color = self.facecolors[1]))
             self.sniplot.set_data(x, background)
             self.nobkgplot.set_data(x, data_no_bkg)
             self.static_canvas.draw_idle()
+
+    def updateROI(self):
+        if len(self.span):
+            for i in self.span:
+                try:
+                    i.remove()
+                except ValueError:
+                    continue
+        self.span.append(self.ax.axvspan(self.countInterval[0].value(), self.countInterval[1].value(), alpha = 0.5, color = self.facecolors[1]))
+        self.static_canvas.draw_idle()
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
