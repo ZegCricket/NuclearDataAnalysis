@@ -160,14 +160,14 @@ class window(QMainWindow):
     
     def openFile(self):
         options = QFileDialog.Options()
-        fileName, _ = QFileDialog.getOpenFileName(self, "Open File", self.dirName, "All Files (*);;Text Files (*.txt);;Data Files (*.dat)", options = options)
-        if fileName != "":
+        fileName, _ = QFileDialog.getOpenFileNames(self, "Open File", self.dirName, "All Files (*);;Text Files (*.txt);;Data Files (*.dat)", options = options)
+        if fileName[0] != "":
             try:
-                self.data = np.genfromtxt(fileName, comments = '$')
+                self.data = np.genfromtxt(fileName[0], comments = '$')
             except ValueError:
-                self.data = np.genfromtxt(fileName, comments = '$', skip_footer = 1)
+                self.data = np.genfromtxt(fileName[0], comments = '$', skip_footer = 1)
             self.data = np.reshape(self.data, -1)
-            fileName, self.dirName = onlyFileName(fileName)
+            fileName, self.dirName = onlyFileName(fileName[0])
             self.data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[2].isChecked(), self.checkBoxes[3].isChecked())
             x = range(0, self.data.size)
             self.plot.set_data(x, self.data)
@@ -182,6 +182,7 @@ class window(QMainWindow):
             self.static_canvas.draw_idle()
             self.countInterval[0].setMaximum(self.data.size - 1)
             self.countInterval[1].setMaximum(self.data.size - 1)
+            self.cb.clear()
             self.cb.addItem(fileName)
 
     def count(self):
