@@ -134,13 +134,12 @@ class window(QMainWindow):
         snipLabel.setFixedHeight(20)
         snipLabel.setAlignment(Qt.AlignCenter)
         snipLayout.addWidget(snipLabel)
-        checkBoxesLabels = np.array(["SNIP Graphic", "SNIP Count", "Decreased", "LLS Operator"])
+        checkBoxesLabels = np.array(["Decreased", "LLS Operator"])
         self.checkBoxes = np.zeros(checkBoxesLabels.size, dtype = QCheckBox)
         for i in range(checkBoxesLabels.size):
             self.checkBoxes[i] = QCheckBox(win)
             self.checkBoxes[i].setText(checkBoxesLabels[i])
-            if i != 1:
-                self.checkBoxes[i].setChecked(True)
+            self.checkBoxes[i].setChecked(True)
             snipLayout.addWidget(self.checkBoxes[i])
         #Configuration of the SNIP interval
         snipIntervalLayout = QHBoxLayout()
@@ -153,7 +152,7 @@ class window(QMainWindow):
         self.mhWindow, self.smooth = twoSpinBoxes(snipParameterLabels, snipParameterLine)
         self.mhWindow.setMinimum(1)
         self.mhWindow.setValue(10)
-        self.smooth.setValue(3)
+        self.smooth.setValue(1)
 
         sasnipLayout = QVBoxLayout()
         toolsLayout.addLayout(sasnipLayout)
@@ -161,7 +160,7 @@ class window(QMainWindow):
         sasnipLabel.setFixedHeight(20)
         sasnipLabel.setAlignment(Qt.AlignCenter)
         sasnipLayout.addWidget(sasnipLabel)
-        sacheckBoxesLabels = np.array(["SASNIP Graphic", "Decreased"])
+        sacheckBoxesLabels = np.array(["Decreased", "Smooth"])
         self.sacheckBoxes = np.zeros(sacheckBoxesLabels.size, dtype = QCheckBox)
         for i in range(sacheckBoxesLabels.size):
             self.sacheckBoxes[i] = QCheckBox(win)
@@ -185,13 +184,14 @@ class window(QMainWindow):
         self.countInterval[1].valueChanged.connect(self.updateROI)
         self.mhWindow.valueChanged.connect(self.updateSNIP)
         self.smooth.valueChanged.connect(self.updateSNIP)
-        self.checkBoxes[2].stateChanged.connect(self.updateSNIP)
-        self.checkBoxes[3].stateChanged.connect(self.updateSNIP)
-        self.originalButton.toggled.connect(self.updateSNIP)
+        self.checkBoxes[0].stateChanged.connect(self.updateSNIP)
+        self.checkBoxes[1].stateChanged.connect(self.updateSNIP)
+        #self.originalButton.toggled.connect(self.updateSNIP)
         self.snipButton.toggled.connect(self.updateSNIP)
         self.sasnipButton.toggled.connect(self.updateSNIP)
         self.max.valueChanged.connect(self.updateSNIP)
         self.threshold.valueChanged.connect(self.updateSNIP)
+        self.sacheckBoxes[0].stateChanged.connect(self.updateSNIP)
         self.sacheckBoxes[1].stateChanged.connect(self.updateSNIP)
 
         #Config
@@ -202,7 +202,7 @@ class window(QMainWindow):
     def openFile(self):
         options = QFileDialog.Options()
         fileName, _ = QFileDialog.getOpenFileNames(self, "Open File", self.dirName, "All Files (*);;Text Files (*.txt);;Data Files (*.dat)", options = options)
-        if fileName[0] != "":
+        if fileName != []:
             try:
                 self.data = np.genfromtxt(fileName[0], comments = '$')
             except ValueError:
@@ -210,10 +210,10 @@ class window(QMainWindow):
             self.data = np.reshape(self.data, -1)
             fileName, self.dirName = onlyFileName(fileName[0])
             if self.sasnipButton.isChecked():
-                background = sasnip(self.data, peakMaximum = self.max.value(), derivativeThreshold = self.threshold.value(), decrease = self.sacheckBoxes[1].isChecked())
+                background = sasnip(self.data, peakMaximum = self.max.value(), derivativeThreshold = self.threshold.value(), decrease = self.sacheckBoxes[0].isChecked(), smooth = self.sacheckBoxes[1].isChecked())
                 self.data_no_bkg = self.data - background
             else:
-                self.data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[2].isChecked(), self.checkBoxes[3].isChecked())
+                self.data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[0].isChecked(), self.checkBoxes[1].isChecked())
             x = range(0, self.data.size)
             self.plot.set_data(x, self.data)
             self.plot.set_label(fileName)
@@ -245,10 +245,10 @@ class window(QMainWindow):
         if self.cb.count() != 0:
             x = range(0, self.data.size)
             if self.sasnipButton.isChecked():
-                background = sasnip(self.data, peakMaximum = self.max.value(), derivativeThreshold = self.threshold.value(), decrease = self.sacheckBoxes[1].isChecked())
+                background = sasnip(self.data, peakMaximum = self.max.value(), derivativeThreshold = self.threshold.value(), decrease = self.sacheckBoxes[0].isChecked(), smooth = self.sacheckBoxes[1].isChecked())
                 self.data_no_bkg = self.data - background
             else:
-                self.data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[2].isChecked(), self.checkBoxes[3].isChecked())
+                self.data_no_bkg, background = calculate_snip_background(self.data, self.mhWindow.value(), self.smooth.value(), self.checkBoxes[0].isChecked(), self.checkBoxes[1].isChecked())
             self.sniplot.set_data(x, background)
             self.nobkgplot.set_data(x, self.data_no_bkg)
             self.static_canvas.draw_idle()

@@ -1,2 +1,5 @@
 .nda/
 *.dat
+__pycache__/
+peakSearching.py
+sasnip copy.py
